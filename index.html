@@ -73,6 +73,16 @@ textarea:focus{border-color:var(--yellow)}
 .uz-btn{padding:6px 12px;border-radius:6px;border:1.5px solid #e0e0e0;background:#f5f5f5;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:#555;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 .uz-btn:hover{border-color:var(--brand);background:#f0fbfd;color:var(--brand)}
 .uz-paste{background:#fffef0;border-color:var(--yellow);color:#a07800}
+
+.product-check-list{display:flex;flex-direction:column;gap:8px}
+.product-check-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s}
+.product-check-row:hover{border-color:var(--brand);background:#f0fbfd}
+.product-check-row.locked{cursor:default;background:#f7f7f7}
+.product-check-row.locked:hover{border-color:#e0e0e0;background:#f7f7f7}
+.product-check-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--brand);flex-shrink:0;cursor:pointer}
+.product-check-row.locked input[type=checkbox]{cursor:default}
+.product-check-row .pcr-label{font-size:13px;font-weight:600;color:#222}
+.product-check-row .pcr-sub{font-size:11px;color:#999;margin-left:auto}
 .uz-paste:hover{background:#fff9d0;border-color:#d4a800;color:#a07800}
 .thumb-wrap{position:relative;display:inline-block}
 .thumb-rm{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#ff4444;color:#fff;font-size:10px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
@@ -261,6 +271,12 @@ input.v-invalid{border-color:#ef4444}
         <div class="full" id="group-arMarketingCost" style="display:none">
           <label>AR-Avatar Schulvermarktungskosten (€) *</label>
           <input type="text" id="fArMarketingCost" placeholder="z.B. 800 €" oninput="onCustomerInput()" onblur="normalizeEuroField(this)">
+        </div>
+
+        <div class="full" id="group-products" style="display:none">
+          <label>Produkte in der Präsentation</label>
+          <div class="url-hint" style="margin-bottom:8px">Schulcard ist immer enthalten. Weitere Formate können abgewählt werden, wenn das Budget des Kunden schon feststeht.</div>
+          <div class="product-check-list" id="productCheckList"></div>
         </div>
       </div>
 
@@ -461,7 +477,16 @@ let gStep = 0;
 let gMaxStepReached = 0;
 let gPerson = null;
 let gTemplateId = null;
-let gCustomer = { companyName: '', logoBase64: '', contractPrice: '', contractEndDate: '', arProdCost: '', arMarketingCost: '' };
+let gCustomer = { companyName: '', logoBase64: '', contractPrice: '', contractEndDate: '', arProdCost: '', arMarketingCost: '', selectedProducts: ['sn', 'ke', 'vr', 'ar'] };
+
+// Nur relevant für die Vorlage "Neukunden-Demo B2B" (Folie 2 Kacheln + Folie 6 Preiskarten).
+// 'sn' (Sprachnachricht) ist die Schulcard-Kachel und nicht abwählbar.
+const PRODUCT_OPTIONS = [
+  { key: 'sn', label: 'Sprachnachricht', sub: 'inkl. Schulcard – immer dabei', locked: true },
+  { key: 'ke', label: '#kurzerklärt-Video', sub: '', locked: false },
+  { key: 'vr', label: '360-Grad-Rundgang', sub: '', locked: false },
+  { key: 'ar', label: 'AR-Avatar', sub: '', locked: false },
+];
 let gFinalHtml = null;
 let gSchulcardHtmlFinal = null;
 
@@ -561,6 +586,29 @@ function applyTemplateFieldsVisibility() {
   });
   document.getElementById('group-arCalc').style.display =
     (ex.includes('arProdCost') || ex.includes('arMarketingCost')) ? '' : 'none';
+
+  const showProducts = gTemplateId === 'neukunden-demo-b2b';
+  document.getElementById('group-products').style.display = showProducts ? '' : 'none';
+  if (showProducts) renderProductChecklist();
+}
+
+function renderProductChecklist() {
+  const list = document.getElementById('productCheckList');
+  list.innerHTML = PRODUCT_OPTIONS.map(p => `
+    <label class="product-check-row${p.locked ? ' locked' : ''}">
+      <input type="checkbox" ${gCustomer.selectedProducts.includes(p.key) ? 'checked' : ''} ${p.locked ? 'disabled' : ''} onchange="toggleProduct('${p.key}', this.checked)">
+      <span class="pcr-label">${p.label}</span>
+      ${p.sub ? `<span class="pcr-sub">${p.sub}</span>` : ''}
+    </label>`).join('');
+}
+
+function toggleProduct(key, checked) {
+  const opt = PRODUCT_OPTIONS.find(p => p.key === key);
+  if (!opt || opt.locked) return;
+  const set = new Set(gCustomer.selectedProducts);
+  if (checked) set.add(key); else set.delete(key);
+  set.add('sn');
+  gCustomer.selectedProducts = PRODUCT_OPTIONS.map(p => p.key).filter(k => set.has(k));
 }
 
 // ── AR-AVATAR PREISKALKULATOR (eingebettet via iframe) ───────────────────────────
@@ -1434,6 +1482,7 @@ async function runGenerateStep4() {
         contractEndDate: gCustomer.contractEndDate,
         arProdCost: gCustomer.arProdCost,
         arMarketingCost: gCustomer.arMarketingCost,
+        selectedProducts: gCustomer.selectedProducts,
         schulcardHtml: gSchulcardHtmlFinal,
       })
     });
@@ -1482,6 +1531,7 @@ async function deployFinal() {
         contractEndDate: gCustomer.contractEndDate,
         arProdCost: gCustomer.arProdCost,
         arMarketingCost: gCustomer.arMarketingCost,
+        selectedProducts: gCustomer.selectedProducts,
         schulcardHtml: gSchulcardHtmlFinal,
       })
     });

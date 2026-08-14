@@ -62,7 +62,7 @@ function renderPresentation(input, opts = {}) {
   const embed = opts.embed !== false;
   const {
     templateId, companyName, contactPersonId, logoBase64,
-    contractPrice, contractEndDate, arProdCost, arMarketingCost, schulcardHtml,
+    contractPrice, contractEndDate, arProdCost, arMarketingCost, selectedProducts, schulcardHtml,
   } = input;
 
   const template = findTemplate(templateId);
@@ -100,6 +100,15 @@ function renderPresentation(input, opts = {}) {
   if (template.extraFields.includes('contractEndDate')) replacements['{{CONTRACT_END_DATE}}'] = contractEndDate || '';
   if (template.extraFields.includes('arProdCost'))       replacements['{{AR_PROD_COST}}']       = arProdCost      || '';
   if (template.extraFields.includes('arMarketingCost'))  replacements['{{AR_MARKETING_COST}}']  = arMarketingCost || '';
+
+  // Folie-2-Kacheln + Preiskarten der Neukunden-Demo B2B ("K1"): 'sn' (Sprachnachricht,
+  // zeigt die Schulcard) ist Pflicht und wird immer erzwungen, auch falls das Frontend
+  // sie versehentlich nicht mitschickt.
+  let products = Array.isArray(selectedProducts) && selectedProducts.length
+    ? selectedProducts.slice()
+    : ['sn', 'ke', 'vr', 'ar'];
+  if (!products.includes('sn')) products.unshift('sn');
+  replacements['{{SELECTED_PRODUCTS_JSON}}'] = JSON.stringify(products);
 
   for (const [token, value] of Object.entries(replacements)) {
     html = html.split(token).join(value);
