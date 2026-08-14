@@ -62,7 +62,8 @@ function renderPresentation(input, opts = {}) {
   const embed = opts.embed !== false;
   const {
     templateId, companyName, contactPersonId, logoBase64,
-    contractPrice, contractEndDate, arProdCost, arMarketingCost, selectedProducts, schulcardHtml,
+    contractPrice, contractEndDate, arProdCost, arMarketingCost, selectedProducts,
+    keVideoId, vrVideoId, schulcardHtml,
   } = input;
 
   const template = findTemplate(templateId);
@@ -109,6 +110,11 @@ function renderPresentation(input, opts = {}) {
     : ['sn', 'ke', 'vr', 'ar'];
   if (!products.includes('sn')) products.unshift('sn');
   replacements['{{SELECTED_PRODUCTS_JSON}}'] = JSON.stringify(products);
+
+  // Beispielvideos #kurzerklärt/360° (K4) — Fallback auf die bisherigen Polizei-Berlin-Videos,
+  // falls der Wizard (noch) keine Auswahl mitschickt.
+  replacements['{{KE_VIDEO_ID}}'] = keVideoId || 'uGsxUGgQpBY';
+  replacements['{{VR_VIDEO_ID}}'] = vrVideoId || 'zwiAASX8YH0';
 
   for (const [token, value] of Object.entries(replacements)) {
     html = html.split(token).join(value);

@@ -148,7 +148,7 @@
       z-index: 3;
       display: flex; align-items: center; gap: 16px;
     }
-    .title-logo { height: 36px; }
+    .title-logo { height: 36px; max-width: 160px; object-fit: contain; }
     .title-accent {
       width: 48px; height: 3px;
       background: var(--brand);
@@ -755,17 +755,6 @@
       </div>
     </div>
     <div id="medium-caption" style="position:absolute;left:560px;right:44px;bottom:92px;text-align:center;font-size:13px;color:rgba(24,24,24,0.55);line-height:1.5;display:none;"></div>
-
-    <!-- Dummy-Hinweis: zeigt auf die Schulcard, nur sichtbar wenn "Sprachnachricht" gewählt ist -->
-    <div id="dummy-hint" style="position:absolute;left:5%;bottom:60px;max-width:280px;z-index:6;">
-      <div style="background:var(--yellow);border-radius:14px;padding:14px 18px;font-size:13px;line-height:1.5;box-shadow:0 6px 18px rgba(0,0,0,0.15);">
-        <strong>Übrigens:</strong> Dies ist nur ein Dummy. Keine echten Daten.
-      </div>
-      <svg width="140" height="70" viewBox="0 0 140 70" style="position:absolute;top:-56px;right:-110px;pointer-events:none;">
-        <path d="M6 62 C 60 62, 90 40, 128 10" stroke="#00afd6" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-        <path d="M116 4 L130 8 L124 22" stroke="#00afd6" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
   </div>
 
   <!-- ══════════════════════════════════════════
@@ -1288,33 +1277,30 @@ function applyProductSelection() {
 }
 
 // ── MEDIUM PICKER (Folie 2) ──────────────────────
-// Referenzvideos (#kurzerklärt/360°) sind aktuell fest verdrahtet (Polizei-Beispiel) –
-// siehe FEEDBACK-NEUKUNDEN-B2B.md K4 für die geplante Dropdown-Auswahl im Generator.
+// Referenzvideos (#kurzerklärt/360°) kommen vom Wizard (K4, Berufsbezeichnung-Suche in
+// Schritt "Kundendaten") — {{KE_VIDEO_ID}}/{{VR_VIDEO_ID}} werden dort befüllt, Fallback
+// auf das bisherige Polizei-Beispiel siehe api/_lib.js.
 const MEDIA_CAPTION = 'Vollständige Produktion durch uns, eigene Nutzungsrechte während der Laufzeit für Sie.';
 const MEDIA = {
   sn: {
     mode: 'tablet',
     html: '<iframe src="{{SCHULCARD_SRC}}" style="width:100%;height:100%;border:none;" frameborder="0"></iframe>',
-    caption: '',
-    hint: true
+    caption: 'Dies ist nur ein Dummy. Keine echten Daten.'
   },
   ke: {
     mode: 'tablet',
-    html: '<iframe src="https://www.youtube.com/embed/uGsxUGgQpBY?rel=0&modestbranding=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>',
-    caption: MEDIA_CAPTION,
-    hint: false
+    html: '<iframe src="https://www.youtube.com/embed/{{KE_VIDEO_ID}}?rel=0&modestbranding=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>',
+    caption: MEDIA_CAPTION
   },
   vr: {
     mode: 'tablet',
-    html: '<iframe src="https://www.youtube.com/embed/zwiAASX8YH0?rel=0&modestbranding=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>',
-    caption: MEDIA_CAPTION,
-    hint: false
+    html: '<iframe src="https://www.youtube.com/embed/{{VR_VIDEO_ID}}?rel=0&modestbranding=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>',
+    caption: MEDIA_CAPTION
   },
   ar: {
     mode: 'phone',
     video: 'AR.mp4',
-    caption: MEDIA_CAPTION,
-    hint: false
+    caption: MEDIA_CAPTION
   }
 };
 
@@ -1326,7 +1312,6 @@ function selectMedium(key, btn) {
   const phone = document.getElementById('medium-phone');
   const phoneVideo = document.getElementById('medium-phone-video');
   const caption = document.getElementById('medium-caption');
-  const hint = document.getElementById('dummy-hint');
 
   if (m.mode === 'tablet') {
     tablet.style.display = '';
@@ -1339,7 +1324,6 @@ function selectMedium(key, btn) {
   }
   caption.textContent = m.caption;
   caption.style.display = m.caption ? 'block' : 'none';
-  if (hint) hint.style.display = m.hint ? 'block' : 'none';
 }
 
 // ── PREIS-KARTEN (Folie 6, R5) ───────────────────
@@ -1349,7 +1333,7 @@ function selectMedium(key, btn) {
 const PRICES = {
   schulcard: { regional: 3000, bundesland: 4500, deutschland: 6000 },
   addon:     { regional: 1500, bundesland: 3000, deutschland: 4500 },
-  prod:      { ke: 4900, vr: 14900, ar: 1500 }
+  prod:      { ke: 4900, vr: 14900, ar: 0 }
 };
 
 const PRICE_FORMATS = [
@@ -1411,6 +1395,7 @@ function searchSchulen() {
 
 // Init
 applyProductSelection();
+selectMedium('sn', document.querySelector('.medium-tile[data-medium="sn"]'));
 renderPricingCards();
 goTo(0);
 </script>

@@ -11,7 +11,8 @@ module.exports = async (req, res) => {
   try {
     const {
       templateId, companyName, contactPersonId, logoBase64,
-      contractPrice, contractEndDate, arProdCost, arMarketingCost, selectedProducts, schulcardHtml,
+      contractPrice, contractEndDate, arProdCost, arMarketingCost, selectedProducts,
+      keVideoId, vrVideoId, schulcardHtml,
     } = req.body;
 
     if (!templateId || !companyName || !contactPersonId) {
@@ -20,7 +21,8 @@ module.exports = async (req, res) => {
 
     const html = renderPresentation({
       templateId, companyName, contactPersonId, logoBase64,
-      contractPrice, contractEndDate, arProdCost, arMarketingCost, selectedProducts, schulcardHtml,
+      contractPrice, contractEndDate, arProdCost, arMarketingCost, selectedProducts,
+      keVideoId, vrVideoId, schulcardHtml,
     }, { embed: true });
 
     res.json({ html });

@@ -83,6 +83,16 @@ textarea:focus{border-color:var(--yellow)}
 .product-check-row.locked input[type=checkbox]{cursor:default}
 .product-check-row .pcr-label{font-size:13px;font-weight:600;color:#222}
 .product-check-row .pcr-sub{font-size:11px;color:#999;margin-left:auto}
+
+.yt-combo{position:relative}
+.yt-combo-input{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13.5px;font-family:inherit;outline:none;transition:border-color .15s;box-sizing:border-box}
+.yt-combo-input:focus{border-color:var(--brand)}
+.yt-combo-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:320px;overflow-y:auto;background:#fff;border:1.5px solid #e0e0e0;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.14);z-index:50;display:none}
+.yt-combo-panel.open{display:block}
+.yt-combo-group-label{position:sticky;top:0;background:#f7f7f7;padding:5px 12px;font-size:10px;font-weight:700;letter-spacing:.04em;color:#999;text-transform:uppercase}
+.yt-combo-item{padding:8px 12px;font-size:13px;color:#333;cursor:pointer}
+.yt-combo-item:hover{background:#f0fbfd;color:var(--brand)}
+.yt-combo-empty{padding:14px 12px;font-size:12px;color:#999;text-align:center}
 .uz-paste:hover{background:#fff9d0;border-color:#d4a800;color:#a07800}
 .thumb-wrap{position:relative;display:inline-block}
 .thumb-rm{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#ff4444;color:#fff;font-size:10px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
@@ -278,6 +288,17 @@ input.v-invalid{border-color:#ef4444}
           <div class="url-hint" style="margin-bottom:8px">Schulcard ist immer enthalten. Weitere Formate können abgewählt werden, wenn das Budget des Kunden schon feststeht.</div>
           <div class="product-check-list" id="productCheckList"></div>
         </div>
+
+        <div class="full" id="group-keVideo" style="display:none">
+          <label>Beispielvideo #kurzerklärt</label>
+          <div class="url-hint" style="margin-bottom:6px">Wird auf Folie 2 statt des Standardbeispiels (Polizei Berlin) gezeigt.</div>
+          <div class="yt-combo" id="comboKe"></div>
+        </div>
+        <div class="full" id="group-vrVideo" style="display:none">
+          <label>Beispielvideo 360-Grad-Rundgang</label>
+          <div class="url-hint" style="margin-bottom:6px">Wird auf Folie 2/3 statt des Standardbeispiels (Polizei Berlin) gezeigt.</div>
+          <div class="yt-combo" id="comboVr"></div>
+        </div>
       </div>
 
       <div class="wiz-nav">
@@ -468,6 +489,7 @@ input.v-invalid{border-color:#ef4444}
 
 <script src="people.js"></script>
 <script src="templates.js"></script>
+<script src="youtube-examples.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════════════
 // WIZARD STATE
@@ -477,7 +499,16 @@ let gStep = 0;
 let gMaxStepReached = 0;
 let gPerson = null;
 let gTemplateId = null;
-let gCustomer = { companyName: '', logoBase64: '', contractPrice: '', contractEndDate: '', arProdCost: '', arMarketingCost: '', selectedProducts: ['sn', 'ke', 'vr', 'ar'] };
+// Default-Beispielvideos: identisch zu den bisher fest verdrahteten Polizei-Berlin-Videos
+// im Template, damit sich am Ergebnis nichts ändert, solange niemand aktiv etwas anderes wählt.
+const DEFAULT_KE_VIDEO_ID = 'uGsxUGgQpBY';
+const DEFAULT_VR_VIDEO_ID = 'zwiAASX8YH0';
+
+let gCustomer = {
+  companyName: '', logoBase64: '', contractPrice: '', contractEndDate: '', arProdCost: '', arMarketingCost: '',
+  selectedProducts: ['sn', 'ke', 'vr', 'ar'],
+  keVideoId: DEFAULT_KE_VIDEO_ID, vrVideoId: DEFAULT_VR_VIDEO_ID,
+};
 
 // Nur relevant für die Vorlage "Neukunden-Demo B2B" (Folie 2 Kacheln + Folie 6 Preiskarten).
 // 'sn' (Sprachnachricht) ist die Schulcard-Kachel und nicht abwählbar.
@@ -590,6 +621,13 @@ function applyTemplateFieldsVisibility() {
   const showProducts = gTemplateId === 'neukunden-demo-b2b';
   document.getElementById('group-products').style.display = showProducts ? '' : 'none';
   if (showProducts) renderProductChecklist();
+  updateYtFieldVisibility();
+}
+
+function updateYtFieldVisibility() {
+  const isB2B = gTemplateId === 'neukunden-demo-b2b';
+  document.getElementById('group-keVideo').style.display = (isB2B && gCustomer.selectedProducts.includes('ke')) ? '' : 'none';
+  document.getElementById('group-vrVideo').style.display = (isB2B && gCustomer.selectedProducts.includes('vr')) ? '' : 'none';
 }
 
 function renderProductChecklist() {
@@ -609,6 +647,64 @@ function toggleProduct(key, checked) {
   if (checked) set.add(key); else set.delete(key);
   set.add('sn');
   gCustomer.selectedProducts = PRODUCT_OPTIONS.map(p => p.key).filter(k => set.has(k));
+  updateYtFieldVisibility();
+}
+
+// ── SUCHBARE VIDEO-AUSWAHL (#kurzerklärt / 360°, K4) ─────────────────────────────
+// Generisches Combobox-Widget: Texteingabe filtert die Liste live, Ergebnisse nach
+// Anfangsbuchstabe des Berufs gruppiert (Listen sind bereits alphabetisch sortiert).
+function createYtCombo(containerId, videos, initialId, onChange) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = `
+    <input type="text" class="yt-combo-input" placeholder="Berufsbezeichnung suchen…" autocomplete="off">
+    <div class="yt-combo-panel"></div>
+  `;
+  const input = container.querySelector('.yt-combo-input');
+  const panel = container.querySelector('.yt-combo-panel');
+
+  function labelFor(v) {
+    return v.unternehmen ? `${v.beruf} (${v.unternehmen})` : v.beruf;
+  }
+
+  function renderList(filterText) {
+    const q = (filterText || '').trim().toLowerCase();
+    const filtered = q
+      ? videos.filter(v => v.beruf.toLowerCase().includes(q) || v.unternehmen.toLowerCase().includes(q))
+      : videos;
+    if (!filtered.length) {
+      panel.innerHTML = '<div class="yt-combo-empty">Keine Treffer</div>';
+      return;
+    }
+    let html = '';
+    let lastLetter = null;
+    filtered.forEach(v => {
+      const letter = v.beruf.charAt(0).toUpperCase();
+      if (letter !== lastLetter) {
+        html += `<div class="yt-combo-group-label">${letter}</div>`;
+        lastLetter = letter;
+      }
+      html += `<div class="yt-combo-item" data-id="${v.id}">${labelFor(v)}</div>`;
+    });
+    panel.innerHTML = html;
+    panel.querySelectorAll('.yt-combo-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const v = videos.find(x => x.id === el.dataset.id);
+        input.value = labelFor(v);
+        panel.classList.remove('open');
+        onChange(v.id);
+      });
+    });
+  }
+
+  input.addEventListener('focus', () => { renderList(''); panel.classList.add('open'); input.select(); });
+  input.addEventListener('input', () => { renderList(input.value); panel.classList.add('open'); });
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) panel.classList.remove('open');
+  });
+
+  const initial = videos.find(v => v.id === initialId);
+  if (initial) input.value = labelFor(initial);
 }
 
 // ── AR-AVATAR PREISKALKULATOR (eingebettet via iframe) ───────────────────────────
@@ -1071,7 +1167,7 @@ body{font-family:'DM Sans',sans-serif;background:#f0f0f0;min-height:100vh;displa
 .cbar{display:flex;align-items:center;gap:12px;padding:10px 20px}
 .cback{width:28px;height:28px;border-radius:50%;border:1px solid var(--gm);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tm);font-size:14px;flex-shrink:0}
 .clogo{width:56px;height:36px;border-radius:4px;display:flex;align-items:center;justify-content:center;background:#fff;border:1.5px solid #e0e0e0;color:#333;font-size:9px;font-weight:700;letter-spacing:.04em;flex-shrink:0;overflow:hidden}
-.clogo img{width:100%;height:100%;object-fit:contain;display:block}
+.clogo img{width:100%;height:100%;min-width:0;min-height:0;object-fit:contain;display:block}
 .cinfo{flex:1}
 .cname{font-size:13px;font-weight:600;color:var(--td)}
 .crole{font-size:11px;color:var(--tm)}
@@ -1483,6 +1579,8 @@ async function runGenerateStep4() {
         arProdCost: gCustomer.arProdCost,
         arMarketingCost: gCustomer.arMarketingCost,
         selectedProducts: gCustomer.selectedProducts,
+        keVideoId: gCustomer.keVideoId,
+        vrVideoId: gCustomer.vrVideoId,
         schulcardHtml: gSchulcardHtmlFinal,
       })
     });
@@ -1532,6 +1630,8 @@ async function deployFinal() {
         arProdCost: gCustomer.arProdCost,
         arMarketingCost: gCustomer.arMarketingCost,
         selectedProducts: gCustomer.selectedProducts,
+        keVideoId: gCustomer.keVideoId,
+        vrVideoId: gCustomer.vrVideoId,
         schulcardHtml: gSchulcardHtmlFinal,
       })
     });
@@ -1594,6 +1694,8 @@ document.querySelectorAll('.upload-zone').forEach(enableDragDrop);
 renderStepIndicator();
 renderPeopleGrid();
 renderTemplateGrid();
+createYtCombo('comboKe', KE_VIDEOS, gCustomer.keVideoId, id => { gCustomer.keVideoId = id; });
+createYtCombo('comboVr', VR_VIDEOS, gCustomer.vrVideoId, id => { gCustomer.vrVideoId = id; });
 updateNextButtons();
 </script>
 </body>

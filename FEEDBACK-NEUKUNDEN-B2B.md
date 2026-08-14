@@ -57,7 +57,7 @@ eigene Folie rechtfertigt oder zusammengelegt/gestrichen werden kann.
 
 ### Inhalte / Verständlichkeit
 
-**K4 — Videobeispiele branchenspezifisch** · Status: 🔜 später, im Kontext des gesamten Generators
+**K4 — Videobeispiele branchenspezifisch** · Status: ✅ umgesetzt (2026-08-14)
 Können die Videobeispiele auf den Beruf/die Branche des Kunden angepasst werden?
 
 Konkretisierter Plan (vom Nutzer während der R2-Umsetzung mitgeteilt, 2026-08-14):
@@ -74,6 +74,35 @@ Betrifft Wizard-Logik + neuen YouTube-Crawling-Schritt (`index.html`, evtl. neue
 eigenständiges, späteres Vorhaben. Für [[R2]] gilt vorerst: feste Polizei-Referenzvideos als
 Platzhalter, aber IDs sind über die `MEDIA`-Objekt-Struktur der Folie zentral austauschbar,
 damit sich die Dropdown-Auswahl später einfach andocken lässt.
+
+**Umsetzung (2026-08-14):**
+- **Datenquelle:** Kein YouTube-API-Key verfügbar → manuell über die Playlists
+  "#kurzerklärt" (133 Videos) und "Alle Berufe in 360°" auf @DeinersterTag gesammelt
+  (`ytInitialData` der Playlist-Seiten ausgelesen). YouTubes interne Pagination-API ließ
+  sich ohne offiziellen Zugang nicht vollständig durchpaginieren → **83 von 133
+  #kurzerklärt-Videos und 91 (Ausschnitt) 360°-Videos** erfasst, nicht der komplette
+  Bestand. Ergebnis liegt in `youtube-examples.js` (`KE_VIDEOS`/`VR_VIDEOS`, je
+  `{id, beruf, unternehmen}`), inkl. Filterung auf tatsächlich getaggte Videos und
+  Ausschluss von "ALT:"-markierten (veralteten) Einträgen. **Später vervollständigen**,
+  sobald ein YouTube-API-Key verfügbar ist.
+- **Wizard (`index.html`):** Direkt unter der Produktauswahl (Schritt "Kundendaten") zwei
+  suchbare Auswahlfelder ("Berufsbezeichnung suchen…") — Live-Filter, Ergebnisse nach
+  Anfangsbuchstabe gruppiert, Anzeige als "Beruf (Unternehmen)". Sichtbarkeit jeweils an
+  die K1-Checkbox gekoppelt (kein #kurzerklärt ausgewählt → Feld verschwindet, analog 360°).
+  Default-Auswahl beider Felder: "Polizist*in (Polizei Berlin)" — identisch zum bisherigen
+  fest verdrahteten Beispiel, damit sich am Ergebnis nichts ändert, solange niemand aktiv
+  etwas anderes wählt. `gCustomer.keVideoId`/`vrVideoId` in beiden Fetch-Payloads.
+- **Backend:** `keVideoId`/`vrVideoId` durch `generate-presentation.js` → `_lib.js`
+  durchgereicht, neue Tokens `{{KE_VIDEO_ID}}`/`{{VR_VIDEO_ID}}` (Fallback: Polizei-Berlin-
+  IDs). `deploy-presentation.js` brauchte wie bei K1 keine Änderung (reicht `req.body`
+  bereits 1:1 durch).
+- **Template:** `MEDIA.ke`/`MEDIA.vr` (Folie 2) nutzen jetzt die Tokens statt fest
+  verdrahteter IDs. Bewusst **nicht** angefasst: die 360°-Kachel im Medienbox-Slider auf
+  Folie 3 (`playFacade('OZZjn3BEouU')`) — das ist ein anderes, generisches
+  Medienbox-Demo-Video, keine Beispiel-Auswahl im K4-Sinne.
+- End-to-End verifiziert: Live-Filter + Gruppierung, Auswahl setzt `gCustomer`-State,
+  Checkbox-gekoppelte Sichtbarkeit, und eine Test-Präsentation mit frei gewählten Video-IDs
+  zeigt die IDs korrekt in den iframe-URLs auf Folie 2.
 
 **K5 — Bild von der Medienbox** · Status: ✅ abgedeckt durch [[R3]]
 Medienbox-Folie braucht ein Bild, um verständlicher zu werden.
@@ -363,6 +392,49 @@ näher am Original halten, damit nicht über die native Auflösung hinaus skalie
   geklärt, ob das ein einmaliger Ladefehler in der Test-Präsentation war oder ein echtes
   Problem mit `Mini_Games_NEU.mp4`/`Minigames.png`. Bei der gesammelten Umsetzung von
   F1–F6 mitprüfen.
+
+## Feedback zur Umsetzung – Runde 5 (2026-08-14)
+
+**F11 — Dummy-Hinweis auf Folie 2 anders platzieren.** · Status: ✅ umgesetzt (2026-08-14)
+Der gelbe Kasten mit Pfeil ("Übrigens: Dies ist nur ein Dummy. Keine echten Daten.") soll
+weg. Stattdessen klein unter das Tablet mit der Schulcard schreiben: *"Dies ist nur ein
+Dummy. Keine echten Daten."* — dezenter, ohne Kasten/Pfeil-Grafik.
+Umsetzung: `#dummy-hint`-Element (gelber Kasten + SVG-Pfeil) komplett entfernt. Text ist
+jetzt `MEDIA.sn.caption` und läuft über das bereits vorhandene `#medium-caption`-Element
+(dieselbe dezente Zeile unter dem Tablet, die auch bei #kurzerklärt/360°/AR-Avatar den
+Nutzungsrechte-Hinweis zeigt) — beim Wechsel zwischen den 4 Kacheln wird jetzt einheitlich
+über dasselbe Element ein-/ausgeblendet.
+
+**F12 — AR-Avatar Preiskarte: Produktionskosten korrigieren.** · Status: ✅ umgesetzt (2026-08-14)
+"Kreation & Produktion (einmalig)" bei AR-Avatar muss **0 €** sein, nicht 1.500 €.
+Betrifft `PRICES.prod.ar` in `templates/neukunden-demo-b2b.html` (aktuell `1500` → `0`).
+"Schulvermarktung (jährlich)" (4.500 €) ist korrekt und bleibt unverändert. Wirkt sich auf
+"Gesamt 1. Jahr" aus (sinkt entsprechend von 6.000 € auf 4.500 €, identisch zu "ab dem
+2. Jahr"). Umsetzung: `PRICES.prod.ar = 0`, Preiskarte zeigt jetzt korrekt "keine" (die
+bestehende `prod > 0 ? fmt(prod) : 'keine'`-Logik greift automatisch).
+
+**F13 — Kundenlogo passt nicht in Container (zwei Stellen).** · Status: ✅ umgesetzt (2026-08-14)
+- Folie 1 (Titelfolie): Logo ("...EMEN..." abgeschnitten) läuft rechts aus der Logo-Leiste
+  (`.title-logo-bar`/`.title-logo`) heraus statt sich einzupassen.
+- Schulcard selbst (Kopfbereich mit Logo + Firmenname + Beruf, z.B. "Siemens AG /
+  Elektroniker*in"): gleiches Problem, Logo ("EMEN..." abgeschnitten) passt nicht in seinen
+  runden/eckigen Container.
+
+Beide Stellen brauchen automatisches Herunterskalieren, damit lange/breite Kundenlogos
+vollständig sichtbar bleiben (z.B. `max-width` + `object-fit:contain` statt fester Höhe
+ohne Breitenbegrenzung).
+
+Umsetzung:
+- Folie 1: `.title-logo { height:36px; max-width:160px; object-fit:contain; }` ergänzt.
+- Schulcard: `.clogo img` hatte bereits `object-fit:contain`, griff aber nicht — Ursache
+  war ein klassischer Flexbox-Stolperstein: `.clogo` ist `display:flex`, und das `<img>`
+  darin ist ein Flex-Item mit implizitem `min-width:auto`/`min-height:auto`, wodurch es
+  sich trotz `width:100%;height:100%` nicht unter seine intrinsische Bildgröße verkleinern
+  ließ — das Logo lief über den 56×36px-Rahmen hinaus und wurde vom `overflow:hidden`
+  einfach abgeschnitten statt verkleinert. Fix: `min-width:0;min-height:0` auf `.clogo img`
+  ergänzt, damit object-fit:contain greifen kann.
+- Verifiziert mit einem simulierten breiten Test-Logo (Seitenverhältnis 10:1): beide
+  Stellen skalieren jetzt korrekt auf die Containergröße herunter, kein Überlauf mehr.
 
 ## Feedback zur Umsetzung – Runde 4 (2026-08-14, aus zweiter Test-Präsentation)
 
