@@ -152,7 +152,7 @@ async function deployPresentation(input) {
   const owner = (userRes.data && userRes.data.login) || 'roberttgreve-web';
 
   // 1. Repo erstellen (oder wiederverwenden, falls Name schon existiert)
-  const createRepo = await gh('POST', '/user/repos', { name: slug, private: false, auto_init: true });
+  const createRepo = await gh('POST', '/user/repos', { name: slug, private: true, auto_init: true });
   if (createRepo.status !== 201 && createRepo.status !== 422) {
     throw new Error('GitHub-Repo konnte nicht erstellt werden: ' + JSON.stringify(createRepo.data));
   }
