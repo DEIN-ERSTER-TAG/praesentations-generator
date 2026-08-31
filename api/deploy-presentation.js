@@ -205,6 +205,8 @@ async function deployPresentation(input) {
     url: liveUrl,
     password,
     contactPersonId,
+    repo: `${owner}/${slug}`,
+    projectId,
     createdAt: new Date().toISOString(),
   });
 
