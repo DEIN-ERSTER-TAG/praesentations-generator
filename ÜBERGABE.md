@@ -19,9 +19,21 @@
 - **Frontend:** eine einzige `index.html` (vanilla JS, kein Framework/Build-Step)
 - **Backend:** Vercel Serverless Functions (Node.js, CommonJS) unter `api/`
 - **KI:** AWS Bedrock (Claude, `eu.anthropic.claude-sonnet-4-6` – siehe Hinweis unten)
-- **Live-Deploy:** GitHub API (neues Repo pro Kunde) + Vercel API (neues Projekt + Deployment pro Kunde)
+- **Live-Deploy:** GitHub API (neues, privates Repo pro Kunde – Backup/Historie) + Vercel Files-API (Dateien direkt hochladen, **kein** Git-verknüpftes Vercel-Projekt mehr, siehe Account-Migration unten)
 - **Speicher:** Upstash Redis (REST-API) für Schulcard-Archiv und Log der live veröffentlichten Präsentationen
-- **Repository:** https://github.com/roberttgreve-web/praesentations-generator
+- **Repository:** https://github.com/DEIN-ERSTER-TAG/praesentations-generator (bis 08.09.2026: `roberttgreve-web/praesentations-generator`, privater Account)
+- **Vercel-Team:** `dein-erster-tag` (Team-ID `team_uPZzn5nT31PSjUm2YQMrtM4N`)
+
+## Account-Migration (08.09.2026)
+
+Der bisherige private Vercel-Account hatte sein Free-Plan-Limit erreicht (keine Deploys mehr möglich). Auslöser, um SalesHelper + alle zugehörigen Tools (Schulcard-Generator, SalesMail-Generator, Angebot-Generator, Präsentations-Vorlagen, ~145 Einzel-Kundenpräsentationen) in einen sauberen Firmenkontext umzuziehen:
+
+- **GitHub:** neue Organisation `DEIN-ERSTER-TAG` (`roberttgreve-web` ist dort Admin-Mitglied)
+- **Vercel:** neues Team `dein-erster-tag` (Account `robertgreve-7086`), bewusst weiter auf **Hobby/Free** (Risiko: Limit kann sich wiederholen, dagegen soll v.a. der 6-Monats-Cleanup im SalesHelper helfen)
+- Alle bestehenden Projekte per Vercel-„Transfer Project"-API umgezogen (Domain/Env-Vars/Deploy-Historie bleiben erhalten, kein Downtime)
+- Coach United (`coachunited-publisher`) und private Alt-Projekte (`familie-greve`, `tischtennis-greve-team`, `nextjs-boilerplate`, `minitt`, `project-v6ueg`) bewusst **nicht** migriert, bleiben auf dem alten Account
+
+**Wichtige Folge für den Live-Deploy-Flow:** Vercel Hobby unterstützt kein Verknüpfen eines Projekts mit einem **privaten, org-gehörenden** GitHub-Repo (`repo_owned_by_org`-Fehler). Da jede Kundenpräsentation seither in einem privaten Repo der neuen Org landet, blockierte das jeden neuen Live-Deploy. Fix (08.09.2026): `deploy-presentation.js` lädt die fertigen Dateien jetzt direkt über die Vercel-Files-API hoch (`uploadVercelFile()`, SHA1-Digest + `POST /v2/files`, dann `POST /v13/deployments` mit `files`-Array statt `gitSource`) – das GitHub-Repo bleibt als privates Backup bestehen, aber ohne Vercel-Verknüpfung greift die Hobby-Einschränkung gar nicht erst. Falls dieser Workaround mal ersetzt werden soll: Vercel-Pro-Upgrade (~$20/Monat) würde echte private Org-Repo-Verknüpfungen wieder erlauben.
 
 ## Projektstruktur
 
@@ -92,10 +104,10 @@ Für die AR-Avatar-Kostenfelder ist in Schritt 2 ein Button "🧮 Preis berechne
 Baut eine eigenständige HTML-Datei. Kontaktfoto, Kundenlogo, Schulcard **und alle im Template referenzierten Fotos** werden als data-URIs eingebettet (funktioniert komplett offline). **Videos werden bewusst nicht eingebettet** (Dateigröße) – sie fehlen in der heruntergeladenen Version.
 
 **Schritt 2 – Live veröffentlichen** (`deploy-presentation.js`, `embed:false`):
-1. Legt (falls nötig) ein neues GitHub-Repo `deinerstertag-<firmenname-slug>` an
-2. Pusht `index.html` + `schulcard.html` + Kontaktfoto + Kundenlogo + alle statischen Assets der Vorlage (Git Data API: blob → tree → commit → ref)
-3. Legt (falls nötig) ein Vercel-Projekt mit demselben Namen an, verknüpft mit dem Repo
-4. Löst ein Production-Deployment aus
+1. Legt (falls nötig) ein neues **privates** GitHub-Repo `deinerstertag-<firmenname-slug>` in der Org `DEIN-ERSTER-TAG` an
+2. Pusht `index.html` + `schulcard.html` + Kontaktfoto + Kundenlogo + alle statischen Assets der Vorlage (Git Data API: blob → tree → commit → ref) – **dient nur noch als Backup/Historie**, nicht mehr als Quelle für den Vercel-Deploy (siehe Account-Migration oben)
+3. Lädt dieselben Dateien zusätzlich direkt über die Vercel-Files-API hoch (`uploadVercelFile()`)
+4. Löst darüber ein Production-Deployment aus (`files`-Array, **keine** Git-Verknüpfung) – das Vercel-Projekt wird dabei automatisch angelegt, falls es noch nicht existiert
 5. Fragt die **tatsächlich zugewiesene** Domain über `GET /v9/projects/{id}/domains` ab und gibt genau diese zurück
 
 Domain-Muster: `https://deinerstertag-<slug>.vercel.app` – **aber:** Vercel kürzt lange `.vercel.app`-Domains automatisch auf 36 Zeichen, ohne Fehler zu werfen (z.B. wird aus `deinerstertag-mittelbrandenburgische-sparkasse` real `deinerstertag-mittelbrandenburgisch`, aus `deinerstertag-collm-klinik-oschatz-gmbh` real `deinerstertag-collm-klinik-oschatz`). Deshalb wird die Domain nicht mehr selbst aus dem Slug zusammengebaut, sondern nach dem Deploy von Vercel abgefragt (Schritt 5 oben) – sonst zeigt das Tool eine URL an, die 404 wirft. Mit dem 14 Zeichen langen Präfix `deinerstertag-` bleiben nur ~22 Zeichen für den Firmennamen, bevor die Kürzung greift; betrifft also viele reale Firmennamen. Falls störend: Präfix kürzen (z.B. `det-`) ist eine offene Entscheidung, siehe unten. **In Produktion bestätigt:** der Fix liefert seither zuverlässig die korrekte, tatsächlich erreichbare URL (Stichprobe Collm Klinik Oschatz GmbH, 16.07.2026) – ein 404 bei einer Kollegin lag an zu schnellem Testen direkt nach dem Deploy (Domain war noch nicht propagiert, siehe Hinweistext "kann 1-2 Minuten dauern").
@@ -126,20 +138,25 @@ Jede Live-Veröffentlichung wird zusätzlich in Upstash Redis unter dem Key `pra
 
 | Variable | Zweck |
 |---|---|
-| `VERCEL_TOKEN` | Vercel API – Projekte/Deployments anlegen |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | AWS Bedrock |
+| `VERCEL_TOKEN` | Vercel API – Projekte/Deployments/Dateien anlegen. Muss Zugriff auf das Team `dein-erster-tag` haben (Scope bei Token-Erstellung), reine „Full Account"-Tokens des persönlichen Accounts reichen nicht |
+| `VERCEL_TEAM_ID` | `team_uPZzn5nT31PSjUm2YQMrtM4N` – wird als `?teamId=` an jeden Vercel-API-Call gehängt (`withTeam()`-Helper). Ohne gesetzt: Fallback auf persönlichen Scope des Tokens |
+| `GITHUB_ORG` | `DEIN-ERSTER-TAG` – neue Repos landen hier statt im persönlichen Account. Ohne gesetzt: Fallback auf persönlichen Account des Tokens |
+| `AWS_BEARER_TOKEN_BEDROCK` | **Seit 08.09.2026 der primäre Bedrock-Auth-Weg** (neuer AWS-Bedrock-„API-Key", Präfix `ABSK`, Bearer-Token statt SigV4). Wenn gesetzt, übernimmt der `@aws-sdk/client-bedrock-runtime`-Default-Provider ihn automatisch – im Code deshalb **keine** explizite `credentials`-Angabe mehr, wenn diese Var gesetzt ist (`generate.js`/`refine.js`) |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Alter Auth-Weg (SigV4) – Token vom 08.09.2026 war abgelaufen. Nur noch Fallback, falls `AWS_BEARER_TOKEN_BEDROCK` fehlt |
 | `AWS_REGION` | `eu-central-1` |
 | `BEDROCK_MODEL_ID` | `eu.anthropic.claude-sonnet-4-6` |
-| `GITHUB_TOKEN` | GitHub API – Repos anlegen/pushen |
+| `GITHUB_TOKEN` | GitHub API – Repos anlegen/pushen. Muss Mitglied/Admin der Org `DEIN-ERSTER-TAG` sein |
 | `GITHUB_REPO` | (aktuell ungenutzt für den Live-Deploy-Flow, historisch) |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Redis – Schulcard-Archiv + Präsentationen-Log |
 
-Diese Werte sind identisch auf Vercel als Projekt-Environment-Variablen hinterlegt (Dashboard oder `vercel env`).
+Diese Werte sind identisch auf Vercel als Projekt-Environment-Variablen hinterlegt (Dashboard oder `vercel env`). **Achtung:** Neu gesetzte/geänderte Env-Vars gelten erst ab dem *nächsten* Deployment, nicht rückwirkend für bereits laufende Deployments – nach einer Änderung also einmal redeployen.
 
 ## Bekannte Stolpersteine
 
 - **Vercel-Datei-Tracing:** `templates/*.html` und `assets/*` werden über dynamisch zusammengesetzte Pfade (`path.join(__dirname, '..', template.file)`) gelesen. Vercels automatische Datei-Erkennung findet solche Pfade nicht zuverlässig – deshalb müssen sie explizit über `functions.<datei>.includeFiles` in `vercel.json` eingebunden werden. Fehlt das, wirft `generate-presentation`/`deploy-presentation` einen `ENOENT`-Fehler.
-- **Git-Push löst nicht immer automatisch ein Production-Deployment aus** (bei anderen Projekten im selben Team, z.B. `pricing-tool`, blieb der Auto-Deploy im Status `BLOCKED` hängen). Bei Bedarf manuell auslösen: `POST https://api.vercel.com/v13/deployments` mit `{ "project": "<id>", "target": "production", "gitSource": { "type": "github", "org": "roberttgreve-web", "repo": "<repo>", "ref": "main" } }`.
+- **Git-Push löst nicht immer automatisch ein Production-Deployment aus** – u.a. wenn die Vercel-GitHub-App noch nicht für die Org autorisiert ist (`errorCode: git_info_fail`) oder die Git-Verknüpfung eines Projekts nach einem Team-Transfer verloren geht (`link: null` im Projekt-Objekt – nach einem Transfer einmal manuell unter Projekt-Settings → Git neu verbinden). Bei Bedarf manuell auslösen: `POST https://api.vercel.com/v13/deployments?forceNew=1&teamId=<TEAM_ID>` mit `{ "name": "<projekt>", "gitSource": { "type": "github", "org": "DEIN-ERSTER-TAG", "repo": "<repo>", "ref": "main", "sha": "<commit-sha>" }, "target": "production" }`.
+- **Private, org-gehörende GitHub-Repos + Vercel Hobby = `repo_owned_by_org`-Fehler:** Betraf sowohl das Verknüpfen von Tool-Repos (Lösung dort: Repo auf `public` gestellt, da kein Kunden-/Secret-Inhalt) als auch – schwerwiegender – jede neue Kundenpräsentation (Lösung: Live-Deploy läuft seit 08.09.2026 ganz ohne Git-Verknüpfung, siehe Account-Migration oben).
+- **Env-Vars gelten erst ab dem nächsten Deployment**, nicht rückwirkend für bereits laufende Deployments (siehe Secrets-Tabelle oben) – nach dem Setzen/Ändern eines Secrets immer einmal redeployen, sonst läuft die alte Version mit der alten/fehlenden Var weiter.
 - **Modell-ID muss zur Region passen** (siehe oben) – bei `ValidationException: The provided model identifier is invalid.` zuerst hier nachsehen.
 - **`.vercel.app`-Domains werden bei >36 Zeichen stillschweigend gekürzt** (siehe "Live-Veröffentlichung" oben) – deploy-presentation.js fragt deshalb die reale Domain per API ab, statt sie selbst zu bauen.
 - **Vercel-Request-Limit ~4,5MB**: unkomprimierte Fotos in der Schulcard/im Deploy-Payload führen zu "Request Entity Too Large". Fotos werden deshalb clientseitig vor dem Einbetten komprimiert (siehe "Foto-Uploads" oben) – bei Änderungen an den Upload-Handlern darauf achten, dass `fileToBase64()` weiterhin durchlaufen wird und nicht umgangen wird.
@@ -151,4 +168,6 @@ Diese Werte sind identisch auf Vercel als Projekt-Environment-Variablen hinterle
 - [ ] Eigene Domain statt `*.vercel.app` für Live-Präsentationen
 - [ ] Domain-Präfix ggf. kürzen (`deinerstertag-` = 14 Zeichen frisst viel vom 36-Zeichen-Budget, z.B. auf `det-` verkürzen) – offene Entscheidung, noch nicht umgesetzt
 - [ ] Videos ebenfalls für den Offline-Download nutzbar machen (z.B. optional, mit Größenwarnung)
-- [ ] Alte Test-/QA-Deployments (z.B. `deinerstertag-qa-test-firma-xyz`) und deren GitHub-Repos aufräumen
+- [ ] 3 alte Test-/QA-GitHub-Repos (`deinerstertag-qa-test-firma-xyz`, `deinerstertag-qa-sehr-langer-testfirmenname-verifikation-gmbh`, `coachunited-test`) liegen noch bei `roberttgreve-web` – Löschung scheiterte am fehlenden `delete_repo`-Scope des Tokens, bewusst zurückgestellt
+- [ ] Alte, personenbezogene Tokens des privaten Accounts (`roberttgreve-4477`/`roberttgreve-web`) irgendwann widerrufen, sobald sicher nichts mehr davon abhängt
+- [ ] Beobachten, ob das neue (kostenlose) Vercel-Team `dein-erster-tag` erneut an ein Limit stößt – dann Pro-Upgrade statt eines weiteren Account-Umzugs
