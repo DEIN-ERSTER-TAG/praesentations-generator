@@ -10,7 +10,18 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+// Firmen-Org/-Team (Migration weg vom persönlichen Account). Wenn nicht
+// gesetzt, verhält sich alles wie bisher (persönlicher GitHub-Account /
+// persönlicher Vercel-Scope) — so bricht nichts, solange die Migration läuft.
+const GITHUB_ORG    = process.env.GITHUB_ORG;
+const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
 const PRAESENTATIONEN_KEY = 'praesentationen';
+
+function withTeam(apiPath) {
+  if (!VERCEL_TEAM_ID) return apiPath;
+  const sep = apiPath.includes('?') ? '&' : '?';
+  return `${apiPath}${sep}teamId=${VERCEL_TEAM_ID}`;
+}
 
 async function redisCmd(...args) {
   if (!REDIS_URL || !REDIS_TOKEN) return null;
@@ -147,12 +158,20 @@ async function deployPresentation(input) {
     }
   }
 
-  // 0. GitHub-User ermitteln (bestimmt den Owner der neuen Repos)
-  const userRes = await gh('GET', '/user');
-  const owner = (userRes.data && userRes.data.login) || 'roberttgreve-web';
+  // 0. Owner ermitteln: neue Präsentationen landen in der Firmen-Org
+  // (GITHUB_ORG), falls konfiguriert — sonst (Übergangszeit während der
+  // Migration) weiterhin im persönlichen Account des Tokens.
+  let owner;
+  if (GITHUB_ORG) {
+    owner = GITHUB_ORG;
+  } else {
+    const userRes = await gh('GET', '/user');
+    owner = (userRes.data && userRes.data.login) || 'roberttgreve-web';
+  }
 
   // 1. Repo erstellen (oder wiederverwenden, falls Name schon existiert)
-  const createRepo = await gh('POST', '/user/repos', { name: slug, private: true, auto_init: true });
+  const createRepoPath = GITHUB_ORG ? `/orgs/${GITHUB_ORG}/repos` : '/user/repos';
+  const createRepo = await gh('POST', createRepoPath, { name: slug, private: true, auto_init: true });
   if (createRepo.status !== 201 && createRepo.status !== 422) {
     throw new Error('GitHub-Repo konnte nicht erstellt werden: ' + JSON.stringify(createRepo.data));
   }
@@ -164,11 +183,11 @@ async function deployPresentation(input) {
 
   // 3. Vercel-Projekt anlegen (oder wiederverwenden)
   let projectId = null;
-  const existingProject = await vc('GET', `/v9/projects/${slug}`);
+  const existingProject = await vc('GET', withTeam(`/v9/projects/${slug}`));
   if (existingProject.status === 200 && existingProject.data) {
     projectId = existingProject.data.id;
   } else {
-    const createProject = await vc('POST', '/v10/projects', {
+    const createProject = await vc('POST', withTeam('/v10/projects'), {
       name: slug,
       framework: null,
       gitRepository: { type: 'github', repo: `${owner}/${slug}` },
@@ -181,7 +200,7 @@ async function deployPresentation(input) {
   }
 
   // 4. Production-Deployment auslösen
-  const deploy = await vc('POST', '/v13/deployments?forceNew=1', {
+  const deploy = await vc('POST', withTeam('/v13/deployments?forceNew=1'), {
     name: slug,
     gitSource: { type: 'github', org: owner, repo: slug, ref: 'main', sha: commitSha },
     target: 'production',
@@ -195,7 +214,7 @@ async function deployPresentation(input) {
   // abfragen statt sie selbst aus dem Slug zu konstruieren (sonst zeigt das Tool eine
   // URL an, die real gar nicht existiert -> 404).
   let liveUrl = `https://${slug}.vercel.app`;
-  const domains = await vc('GET', `/v9/projects/${projectId}/domains`);
+  const domains = await vc('GET', withTeam(`/v9/projects/${projectId}/domains`));
   const realDomain = domains.data?.domains?.find(d => d.name.endsWith('.vercel.app'));
   if (realDomain) liveUrl = `https://${realDomain.name}`;
 
