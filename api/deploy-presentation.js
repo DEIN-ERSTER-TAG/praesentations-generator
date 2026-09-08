@@ -1,6 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const {
   findTemplate, findPerson, slugify, extFromDataUrl, renderPresentation,
   generatePassword, injectPasswordGate,
@@ -76,6 +77,29 @@ async function vc(method, apiPath, body) {
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Lädt eine Datei direkt bei Vercel hoch (Deployment-Files-API), ohne
+// GitHub-Verknüpfung. Damit greift die Vercel-Hobby-Einschränkung "privates
+// Repo + Organisation nicht unterstützt" gar nicht erst - die betrifft nur
+// git-verknüpfte Projekte.
+async function uploadVercelFile(buffer) {
+  const sha = crypto.createHash('sha1').update(buffer).digest('hex');
+  const res = await fetch('https://api.vercel.com/v2/files' + (VERCEL_TEAM_ID ? `?teamId=${VERCEL_TEAM_ID}` : ''), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${VERCEL_TOKEN}`,
+      'Content-Type': 'application/octet-stream',
+      'x-vercel-digest': sha,
+    },
+    body: buffer,
+  });
+  if (!res.ok) {
+    let errData = null;
+    try { errData = await res.json(); } catch { /* no body */ }
+    throw new Error(`Vercel-Datei-Upload fehlgeschlagen (${sha}): ${res.status} ${JSON.stringify(errData)}`);
+  }
+  return { sha, size: buffer.length };
+}
 
 // Mirrors the Git Data API blob/tree/commit/ref-update sequence used by
 // the working reference implementation in Sales_Neukunden_Demo/deploy.py.
@@ -178,36 +202,30 @@ async function deployPresentation(input) {
   // auto_init braucht einen Moment, bis der main-Branch existiert
   await sleep(2000);
 
-  // 2. Dateien pushen (Git Data API: blobs -> tree -> commit -> ref)
-  const commitSha = await pushFiles(owner, slug, files);
+  // 2. Dateien pushen (Git Data API: blobs -> tree -> commit -> ref) - dient
+  // nur noch als Backup/Historie, nicht mehr als Quelle fürs Vercel-Deployment.
+  await pushFiles(owner, slug, files);
 
-  // 3. Vercel-Projekt anlegen (oder wiederverwenden)
-  let projectId = null;
-  const existingProject = await vc('GET', withTeam(`/v9/projects/${slug}`));
-  if (existingProject.status === 200 && existingProject.data) {
-    projectId = existingProject.data.id;
-  } else {
-    const createProject = await vc('POST', withTeam('/v10/projects'), {
-      name: slug,
-      framework: null,
-      gitRepository: { type: 'github', repo: `${owner}/${slug}` },
-      outputDirectory: '.',
-    });
-    if (createProject.status !== 200 && createProject.status !== 201) {
-      throw new Error('Vercel-Projekt konnte nicht erstellt werden: ' + JSON.stringify(createProject.data));
-    }
-    projectId = createProject.data.id;
+  // 3+4. Dateien direkt bei Vercel hochladen und darüber deployen (KEINE
+  // Git-Verknüpfung). Das Projekt wird dabei automatisch angelegt, falls es
+  // noch nicht existiert - kein separater Erstellungs-Call nötig.
+  const vercelFiles = [];
+  for (const f of files) {
+    const buffer = Buffer.from(f.contentB64, 'base64');
+    const { sha, size } = await uploadVercelFile(buffer);
+    vercelFiles.push({ file: f.repoPath, sha, size });
   }
 
-  // 4. Production-Deployment auslösen
   const deploy = await vc('POST', withTeam('/v13/deployments?forceNew=1'), {
     name: slug,
-    gitSource: { type: 'github', org: owner, repo: slug, ref: 'main', sha: commitSha },
+    files: vercelFiles,
+    projectSettings: { framework: null, outputDirectory: '.' },
     target: 'production',
   });
   if (deploy.status !== 200 && deploy.status !== 201) {
     throw new Error('Deployment fehlgeschlagen: ' + JSON.stringify(deploy.data));
   }
+  const projectId = deploy.data.projectId;
 
   // Vercel kürzt automatisch generierte .vercel.app-Domains bei langen Projektnamen
   // (~35-36 Zeichen) OHNE Fehlermeldung. Deshalb die tatsächlich zugewiesene Domain
