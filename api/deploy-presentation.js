@@ -35,13 +35,33 @@ async function redisCmd(...args) {
   return json.result;
 }
 
+// Beim erneuten Veröffentlichen derselben Firma (z.B. nach einer Korrektur)
+// soll das bestehende Passwort weiterlaufen, statt bei jedem Deploy
+// stillschweigend ein neues zu erzeugen und das vorher rausgegebene ungültig
+// zu machen.
+async function findExistingPassword(slug) {
+  try {
+    const raw = await redisCmd('GET', PRAESENTATIONEN_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    const existing = list.find(e => typeof e.id === 'string' && e.id.startsWith(slug + '-'));
+    return existing ? existing.password : null;
+  } catch (err) {
+    console.warn('Konnte bestehendes Passwort nicht nachschlagen:', err.message);
+    return null;
+  }
+}
+
 async function logPresentation(entry) {
   try {
     const raw = await redisCmd('GET', PRAESENTATIONEN_KEY);
     const list = raw ? JSON.parse(raw) : [];
-    list.unshift(entry);
-    if (list.length > 100) list.splice(100);
-    await redisCmd('SET', PRAESENTATIONEN_KEY, JSON.stringify(list));
+    // Erneutes Veröffentlichen derselben Firma ersetzt den bestehenden
+    // Eintrag, statt einen zweiten (mit anderem Passwort) anzuhängen.
+    const slugPrefix = entry.id.slice(0, entry.id.lastIndexOf('-') + 1);
+    const filtered = list.filter(e => !(typeof e.id === 'string' && e.id.startsWith(slugPrefix)));
+    filtered.unshift(entry);
+    if (filtered.length > 100) filtered.splice(100);
+    await redisCmd('SET', PRAESENTATIONEN_KEY, JSON.stringify(filtered));
   } catch (err) {
     console.warn('Konnte Präsentation nicht in Redis loggen:', err.message);
   }
@@ -152,7 +172,7 @@ async function deployPresentation(input) {
   if (!schulcardHtml) throw new Error('Schulcard fehlt – bitte zuerst Schritt 4 abschließen.');
 
   const slug = 'deinerstertag-' + slugify(companyName);
-  const password = generatePassword();
+  const password = (await findExistingPassword(slug)) || generatePassword();
 
   // index.html mit relativen Dateinamen (nicht data:-URIs) — die referenzierten
   // Dateien werden unten mit hochgeladen. Passwort-Gate schützt die Live-Domain.
