@@ -93,6 +93,7 @@ Antworte NUR mit validem JSON – kein Markdown, keine Erklärungen:
   "trainingType": "${typeLabel}",
   "website": "Offizielle Website von ${companyName}",
   "personName": "Passender Vorname für eine*n ${personLabel} bei ${companyName}",
+  "personGender": "Geschlecht des erfundenen Vornamens – NUR 'm' oder 'w'",
   "personRole": "${personLabel} ${jobTitle} · ${companyName}",
   "companyDescription": "Was ${companyName} macht – max 18 Wörter, direkt und ansprechend",
   "jobDescription": "Was man als ${jobTitle} bei ${companyName} konkret macht – 2 Sätze, Du-Form, berufsspezifisch",
