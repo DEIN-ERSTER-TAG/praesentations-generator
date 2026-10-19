@@ -62,7 +62,8 @@ module.exports = async (req, res) => {
     res.json({ data });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    // AWS-Fehlertyp + HTTP-Status mitliefern, damit Bedrock-Fehler ohne Log-Zugriff diagnostizierbar sind
+    res.status(500).json({ error: err.message, errorName: err.name, awsStatus: err.$metadata?.httpStatusCode });
   }
 };
 
