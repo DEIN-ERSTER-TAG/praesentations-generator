@@ -255,7 +255,7 @@ input.v-invalid{border-color:#ef4444}
 
         <div class="full" id="group-contractPrice" style="display:none">
           <label>Vertragspreis (€) *</label>
-          <input type="text" id="fContractPrice" placeholder="z.B. 4.999 €" oninput="onCustomerInput()">
+          <input type="text" id="fContractPrice" placeholder="z.B. 4.999 €" oninput="onCustomerInput()" onblur="normalizeEuroField(this)">
         </div>
         <div class="full" id="group-contractEndDate" style="display:none">
           <label>Testphase-Enddatum *</label>

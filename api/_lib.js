@@ -58,6 +58,17 @@ function contactPhotoDataUri(person) {
  * opts.embed = false → Kontaktfoto/Kundenlogo/Schulcard werden als relative Dateinamen
  *                       referenziert (so wie sie von deploy-presentation.js danebengelegt werden).
  */
+// Vertragspreis kommt als Freitext aus dem Formular. Reine Zahlen ("6000",
+// "6.000") werden ins Format "6.000 €" gebracht, damit auf der Folie nie eine
+// nackte Zahl ohne Währung steht. Alles andere bleibt unverändert.
+function formatEuroPrice(value) {
+  const v = String(value || '').trim();
+  if (!/^[\d.\s]+€?$/.test(v)) return v;
+  const n = parseInt(v.replace(/[^\d]/g, ''), 10);
+  if (!n) return v;
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+}
+
 function renderPresentation(input, opts = {}) {
   const embed = opts.embed !== false;
   const {
@@ -97,7 +108,7 @@ function renderPresentation(input, opts = {}) {
     replacements['{{SCHULCARD_SRC}}'] = 'schulcard.html';
   }
 
-  if (template.extraFields.includes('contractPrice'))   replacements['{{CONTRACT_PRICE}}']    = contractPrice    || '';
+  if (template.extraFields.includes('contractPrice'))   replacements['{{CONTRACT_PRICE}}']    = formatEuroPrice(contractPrice);
   if (template.extraFields.includes('contractEndDate')) replacements['{{CONTRACT_END_DATE}}'] = contractEndDate || '';
   if (template.extraFields.includes('arProdCost'))       replacements['{{AR_PROD_COST}}']       = arProdCost      || '';
   if (template.extraFields.includes('arMarketingCost'))  replacements['{{AR_MARKETING_COST}}']  = arMarketingCost || '';
