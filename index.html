@@ -615,6 +615,12 @@ function selectTemplate(id) {
 }
 
 // ── STEP 2: KUNDENDATEN ──────────────────────────────────────────────────────────
+// Vorlagen mit productPicker:true (Neukunden B2B + Test-Variante) zeigen Produkt- und Videoauswahl
+function hasProductPicker() {
+  const t = TEMPLATES.find(x => x.id === gTemplateId);
+  return !!(t && t.productPicker);
+}
+
 function applyTemplateFieldsVisibility() {
   const t = TEMPLATES.find(x => x.id === gTemplateId);
   const ex = t ? t.extraFields : [];
@@ -624,14 +630,14 @@ function applyTemplateFieldsVisibility() {
   document.getElementById('group-arCalc').style.display =
     (ex.includes('arProdCost') || ex.includes('arMarketingCost')) ? '' : 'none';
 
-  const showProducts = gTemplateId === 'neukunden-demo-b2b';
+  const showProducts = hasProductPicker();
   document.getElementById('group-products').style.display = showProducts ? '' : 'none';
   if (showProducts) renderProductChecklist();
   updateYtFieldVisibility();
 }
 
 function updateYtFieldVisibility() {
-  const isB2B = gTemplateId === 'neukunden-demo-b2b';
+  const isB2B = hasProductPicker();
   document.getElementById('group-keVideo').style.display = (isB2B && gCustomer.selectedProducts.includes('ke')) ? '' : 'none';
   document.getElementById('group-vrVideo').style.display = (isB2B && gCustomer.selectedProducts.includes('vr')) ? '' : 'none';
 }

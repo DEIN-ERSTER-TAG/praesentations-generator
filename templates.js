@@ -1,4 +1,4 @@
-// Zentrales Manifest der 4 Präsentations-Vorlagen.
+// Zentrales Manifest der Präsentations-Vorlagen.
 // Wird sowohl vom Frontend (Schritt 1 Karten, Schritt 2 Formularfelder) als auch
 // von api/generate-presentation.js und api/deploy-presentation.js genutzt.
 const TEMPLATES = [
@@ -9,6 +9,40 @@ const TEMPLATES = [
     file: 'templates/neukunden-demo-b2b.html',
     assetDir: 'templates/assets/neukunden-demo-b2b',
     extraFields: [], // keine template-spezifischen Zusatzfelder
+    productPicker: true, // Produktauswahl (K1) + Beispielvideo-Auswahl (K4) im Wizard
+    staticAssets: [
+      'Large.svg',
+      'Girl with VR.jpg',
+      'Dein-Erster-Tag-Medienbox-1024x692.webp',
+      'Berufsberatung.jpg',
+      'ElevenLabs_2026-05-28T11_11_39_Yvonne_gen_sp100_s80_sb60_v3.mp3',
+      'kurzfilm-kino-feed.png',
+      'Minigames.png',
+      'Azubichat.png',
+      'Schulkarte.png',
+      'jobapp.png',
+      'Mini_Games_NEU.mp4',
+      'Azubi_Chat_NEU.mp4',
+      'AR.mp4',
+      'VR Magic.png',
+      'Thumbnail YT 1.png',
+      'Thumbnail YT 2.png',
+      'Thumbnail YT 3.png',
+      'Thumbnail YT 4.png',
+      'Thumbnail YT 5.png',
+      'Thumbnail YT 6.png',
+      'Thumbnail YT 7.png',
+      'Thumbnail YT 8.png',
+    ],
+  },
+  {
+    id: 'neukunden-test-schulprogramm-first',
+    label: 'B2B Neukunden (Test: Schulprogramm first)',
+    description: 'A/B-Test: Neukunden-Präsi mit anderem Narrativ – erst Warum Schule & die drei Wege in die Schule, dann die Medienproduktion.',
+    file: 'templates/neukunden-test-schulprogramm-first.html',
+    assetDir: 'templates/assets/neukunden-demo-b2b', // dieselben Assets wie die Original-Neukunden-Präsi
+    extraFields: [], // keine template-spezifischen Zusatzfelder
+    productPicker: true, // Produktauswahl (K1) + Beispielvideo-Auswahl (K4) im Wizard
     staticAssets: [
       'Large.svg',
       'Girl with VR.jpg',
