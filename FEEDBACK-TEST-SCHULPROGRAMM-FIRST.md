@@ -1,12 +1,19 @@
 # Feedback zur Vorlage "B2B Neukunden (Test: Schulprogramm first)"
 
 Betrifft: `templates/neukunden-test-schulprogramm-first.html` (A/B-Test-Variante der Neukunden-Präsi)
-Öffentliche Demo: `../Sales_Neukunden_Demo_Schulprogramm_First/` (neu bauen mit `python build_demo.py`)
+Öffentliche Demo: https://det-neukunden-schulprogramm-first.vercel.app
+(Quelle: `../Sales_Neukunden_Demo_Schulprogramm_First/` – `python build_demo.py` baut neu, `python deploy_demo.py` lädt hoch)
 
-**Stand 2026-10-22:** Vorlage, Generator-Registrierung, Demo und SalesHelper-Kachel sind lokal fertig,
-**nichts committet, nichts live.** Runde 1 (F1, F2, F5, F6) ist umgesetzt, siehe unten.
+**Stand 2026-10-22: LIVE.** Runden 1–3 (F1–F9) umgesetzt und veröffentlicht – Generator (Commit 0225d65),
+öffentliche Demo (Vercel-Projekt `det-neukunden-schulprogramm-first`) und SalesHelper-Kachel (Commit 5ea3d07).
+A/B-Auswertung erfolgt über die Verkäufe, kein technisches Tracking.
 
-## Runde 1 – gesammelt, noch nicht umgesetzt
+**Aktuelle Folienfolge (14 Folien):** 1 Titel · 2 Warum Schule? (69 % | 7 %) · 3 Was bei der Berufswahl wirklich
+zählt (91/88/88 % + "Wer hilft") · 4 Direkter Kontakt besetzt Ausbildungsplätze (BIBB) · 5 Drei Wege in die Schule ·
+6 Medienbox · 7 Videostunde · 8 Berufsberatung (BA) · 9 Schulen in Ihrer Region · 10 Und womit sind Sie dabei?
+(Medienproduktion) · 11 Was kostet ein Schülerkontakt? · 12 Unser Angebot · 13 Wie möchten wir verbleiben? · 14 Kontakt
+
+## Runde 1 – umgesetzt (Details unten)
 
 **F1 — Folie 2 ("Warum Schule?") neu aufbauen.**
 
@@ -81,7 +88,7 @@ Hinweis: Folie 5 (Videostunde) und Folie 7 (Schulen in Ihrer Region) laufen bei 
 - Jede Folie hat ihre eigene Quellenzeile. Präsi hat jetzt 14 Folien; "Drei Wege" ist Folie 5.
 - Getestet bei 1830×750, 1440×810, 1280×720: kein Überlauf, keine JS-Fehler.
 
-## Runde 3 – gesammelt, noch nicht umgesetzt
+## Runde 3 – umgesetzt und veröffentlicht (2026-10-22)
 
 **F8 — Folie 2 (Hero 69 % | 7 %): Texte kürzen/schärfen.**
 
@@ -107,3 +114,13 @@ Hinweis: Folie 5 (Videostunde) und Folie 7 (Schulen in Ihrer Region) laufen bei 
     Bewerbungen, die passen. Betriebe besetzen ihre Ausbildungsplätze zuverlässiger." (bewusst ohne "weniger")
   - Rechts (blass grau): Label "Indirekte Kanäle" · Titel "Masse statt Passung" · Text "Anzeigen, Jobbörsen,
     Social Media: mehr Bewerbungen – aber nicht weniger unbesetzte Stellen."
+
+## Offen / Ideen für später
+
+- Headlines von Folie 3 ("Was bei der Berufswahl wirklich zählt.") und 4 ("Direkter Kontakt besetzt
+  Ausbildungsplätze.") stammen von Claude – von Robert nicht ausdrücklich bestätigt, aber so veröffentlicht.
+- Folie 7 (Videostunde) und 9 (Schulen in Ihrer Region) laufen bei Fensterhöhen ≤ 750 px leicht über –
+  aus dem Original übernommen, nicht angefasst.
+- Rechercheergebnisse (alle Zahlen inkl. nicht verwendeter) sind im Chatverlauf vom 2026-10-22 dokumentiert;
+  "Touchpoints bis zur Bewerbung" ist nicht belastbar belegt ("Rule of 7" = Folklore) – nicht verwenden.
+

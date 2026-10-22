@@ -41,11 +41,12 @@ Der bisherige private Vercel-Account hatte sein Free-Plan-Limit erreicht (keine 
 Präsentations-Generator/
 ├── index.html                    — der komplette 5-Schritte-Wizard (Frontend)
 ├── people.js                     — die 6 Sales-Personen (Schritt 1)
-├── templates.js                  — Manifest der 4 Vorlagen (id, Datei, Zusatzfelder, Assets)
+├── templates.js                  — Manifest der 5 Vorlagen (id, Datei, Zusatzfelder, Assets, productPicker)
 ├── Large.svg / Large@2x.png      — DET-Logo (Root, für den Wizard selbst)
 ├── assets/                       — Kontaktfotos der Sales-Personen
 ├── templates/
 │   ├── neukunden-demo-b2b.html
+│   ├── neukunden-test-schulprogramm-first.html  — A/B-Test-Variante (siehe unten)
 │   ├── bestandskunden-nur-app.html
 │   ├── bestandskunden-nur-sv.html
 │   ├── bestandskunden-app-sv.html
@@ -61,16 +62,36 @@ Präsentations-Generator/
 └── .env                          — Secrets (nicht im Git)
 ```
 
-## Die 4 Präsentations-Vorlagen
+## Die 5 Präsentations-Vorlagen
 
 | Vorlage | Zusatzfelder in Schritt 2 |
 |---|---|
-| Neukunden-Demo B2B | keine |
+| Neukunden-Demo B2B | keine (Produkt- + Beispielvideo-Auswahl) |
+| B2B Neukunden (Test: Schulprogramm first) | keine (Produkt- + Beispielvideo-Auswahl) |
 | Bestandskunden: Nur App | Vertragspreis, Testphase-Enddatum, AR-Avatar-Kosten |
 | Bestandskunden: Nur SV | AR-Avatar-Kosten |
 | Bestandskunden: App + SV | AR-Avatar-Kosten |
 
 Jede Vorlage ist eine eigenständige HTML-Datei mit `{{TOKEN}}`-Platzhaltern (`CONTACT_NAME`, `CUSTOMER_LOGO_SRC`, `SCHULCARD_SRC`, `AR_PROD_COST` …), die `api/_lib.js::renderPresentation()` befüllt.
+
+Produktauswahl (Checkboxen) und Beispielvideo-Dropdowns im Wizard erscheinen bei allen Vorlagen mit
+`productPicker: true` in `templates.js` (Helper `hasProductPicker()` in `index.html`) – nicht mehr fest an
+der Vorlagen-ID `neukunden-demo-b2b`.
+
+### A/B-Test: "B2B Neukunden (Test: Schulprogramm first)" (seit 22.10.2026 live)
+
+Zusätzliche Variante der Neukunden-Präsi (ersetzt sie **nicht**) mit anderem Narrativ: erst *Warum Schule?*
+(3 Folien mit Studienzahlen: Bertelsmann Stiftung/IW 2024, Bertelsmann "Ausbildungsperspektiven" 2024, BIBB
+Report 3/2023), dann *Drei Wege in die Schule* (Übersicht mit Klick auf Medienbox/Videostunde/Berufsberatung),
+die Detail-Folien, und erst danach die Medienproduktion ("Und womit sind Sie dabei?"). Nutzt denselben
+Asset-Ordner wie `neukunden-demo-b2b`. Auswertung des Tests über die Verkäufe.
+
+- Öffentliche Demo (Dummy-Kunde Polizei Brandenburg): https://det-neukunden-schulprogramm-first.vercel.app –
+  Quelle in `../Sales_Neukunden_Demo_Schulprogramm_First/`: `python build_demo.py` (baut aus der Vorlage) +
+  `python deploy_demo.py` (Vercel-Files-API, Token aus dieser `.env`). Nach jeder Vorlagenänderung beides
+  ausführen, sonst zeigt die Demo den alten Stand.
+- Kachel im SalesHelper (`det-saleshelper/index.html`, Abschnitt "Präsentations-Vorlagen").
+- Feedback-Historie: `FEEDBACK-TEST-SCHULPROGRAMM-FIRST.md`.
 
 ## Schulcard-Generierung (Schritt 4)
 
@@ -158,6 +179,7 @@ Diese Werte sind identisch auf Vercel als Projekt-Environment-Variablen hinterle
 - **Private, org-gehörende GitHub-Repos + Vercel Hobby = `repo_owned_by_org`-Fehler:** Betraf sowohl das Verknüpfen von Tool-Repos (Lösung dort: Repo auf `public` gestellt, da kein Kunden-/Secret-Inhalt) als auch – schwerwiegender – jede neue Kundenpräsentation (Lösung: Live-Deploy läuft seit 08.09.2026 ganz ohne Git-Verknüpfung, siehe Account-Migration oben).
 - **Env-Vars gelten erst ab dem nächsten Deployment**, nicht rückwirkend für bereits laufende Deployments (siehe Secrets-Tabelle oben) – nach dem Setzen/Ändern eines Secrets immer einmal redeployen, sonst läuft die alte Version mit der alten/fehlenden Var weiter.
 - **Modell-ID muss zur Region passen** (siehe oben) – bei `ValidationException: The provided model identifier is invalid.` zuerst hier nachsehen.
+- **"Bedrock is unable to process your request." (19.10.2026):** `eu.anthropic.claude-sonnet-4-6` lieferte dauerhaft `ServiceUnavailableException` (503) – Auth war ok, nur dieses Modell nahm keine Anfragen an. Fix: `callBedrock()` in `generate.js`/`refine.js` weicht bei 503/Throttling automatisch auf `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` aus. Im Account funktionierten zu dem Zeitpunkt außerdem `eu.anthropic.claude-haiku-4-5-20251001-v1:0` und `eu.anthropic.claude-opus-4-6-v1`; `global.*`-Profile sind für den IAM-User `CLAUDE` nicht freigegeben (403). Fehlerantworten der API enthalten seither `errorName` + `awsStatus` zur schnellen Diagnose.
 - **`.vercel.app`-Domains werden bei >36 Zeichen stillschweigend gekürzt** (siehe "Live-Veröffentlichung" oben) – deploy-presentation.js fragt deshalb die reale Domain per API ab, statt sie selbst zu bauen.
 - **Vercel-Request-Limit ~4,5MB**: unkomprimierte Fotos in der Schulcard/im Deploy-Payload führen zu "Request Entity Too Large". Fotos werden deshalb clientseitig vor dem Einbetten komprimiert (siehe "Foto-Uploads" oben) – bei Änderungen an den Upload-Handlern darauf achten, dass `fileToBase64()` weiterhin durchlaufen wird und nicht umgangen wird.
 - **Unsichtbare Scrollbar täuscht "kaputtes" Scrollen vor:** `.slide-inner::-webkit-scrollbar{display:none}` hat mehrfach zu Bug-Reports geführt ("Folie lässt sich nicht scrollen"), obwohl das Scroll-Verhalten technisch funktionierte – ohne Scrollbar sieht man einfach nicht, dass es welches gibt. Jetzt eine dezente sichtbare Scrollbar statt komplett versteckt.
