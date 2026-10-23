@@ -117,8 +117,7 @@ Hinweis: Folie 5 (Videostunde) und Folie 7 (Schulen in Ihrer Region) laufen bei 
 
 ## Offen / Ideen für später
 
-- Headlines von Folie 3 ("Was bei der Berufswahl wirklich zählt.") und 4 ("Direkter Kontakt besetzt
-  Ausbildungsplätze.") stammen von Claude – von Robert nicht ausdrücklich bestätigt, aber so veröffentlicht.
+- ~~Headlines von Folie 3 und 4 unbestätigt~~ → von Robert am 23.10. bestätigt.
 - Folie 7 (Videostunde) und 9 (Schulen in Ihrer Region) laufen bei Fensterhöhen ≤ 750 px leicht über –
   aus dem Original übernommen, nicht angefasst.
 - Rechercheergebnisse (alle Zahlen inkl. nicht verwendeter) sind im Chatverlauf vom 2026-10-22 dokumentiert;
