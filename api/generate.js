@@ -19,12 +19,19 @@ const SYSTEM_PROMPT = `Du bist ein Experte für deutsche Ausbildungsberufe, Dual
 // Fallback-Modell: eu.anthropic.claude-sonnet-4-6 lieferte ab Okt. 2026 dauerhaft
 // ServiceUnavailableException (503), Sonnet 4.5 lief im selben Account weiter. Bei
 // 503/Throttling wird deshalb automatisch auf das Fallback-Modell ausgewichen.
-const FALLBACK_MODEL_ID = 'eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
+// Weitere Stufen (29.10.2026): bei "Too many tokens per day" (ThrottlingException) waren Sonnet 4.6
+// und 4.5 gleichzeitig erschöpft – Bedrock-Tageskontingente gelten pro Modell, daher Opus 4.6 und
+// zuletzt Haiku 4.5 (günstiger, etwas einfachere Texte) als weitere Ausweich-Modelle.
+const FALLBACK_MODEL_IDS = [
+  'eu.anthropic.claude-sonnet-4-5-20250929-v1:0',
+  'eu.anthropic.claude-opus-4-6-v1',
+  'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+];
 const RETRYABLE = ['ServiceUnavailableException', 'ThrottlingException', 'ModelNotReadyException'];
 
 async function callBedrock(userPrompt) {
   const primary = process.env.BEDROCK_MODEL_ID || 'eu.anthropic.claude-sonnet-4-6';
-  const modelIds = primary === FALLBACK_MODEL_ID ? [primary] : [primary, FALLBACK_MODEL_ID];
+  const modelIds = [primary, ...FALLBACK_MODEL_IDS.filter(id => id !== primary)];
   for (let i = 0; i < modelIds.length; i++) {
     try {
       const res = await bedrock.send(new InvokeModelCommand({
